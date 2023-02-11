@@ -73,10 +73,21 @@ def getHtmlfromDriver():
 
     return html
 
+def getGapDays(soup):
+    """Get blank days before day 1"""
+    
+    mainCalendar = soup.find("div", {"class":"maincalendar"})
+    firstWeek = mainCalendar.find("tr", {"data-region":"month-view-week"})
+    firstWeekBlanks = firstWeek.find_all("td",{"class":"dayblank"})
+    
+    return firstWeekBlanks
+    
+
 def listaCal(html):
     """Parse html with soup and returns it"""
 
     soup = BeautifulSoup(html, "html.parser")
+
     return soup.find_all(
         "div", 
         {
@@ -86,7 +97,7 @@ def listaCal(html):
     
 def saveTasks(lista): 
     """Save all tasks to table and return it"""
-
+    soup = BeautifulSoup(html, "html.parser")
     tablaDias = []
     dia = 1
     for day in lista:
@@ -100,6 +111,31 @@ def saveTasks(lista):
         # Append day to json
         tablaDias.append({"dia":dia, "tareas":tareasArray})
         dia+=1
+
+    return tablaDias
+
+def saveTasksWithGaps(lista, html): 
+    """Save all tasks to table and return it"""
+    soup = BeautifulSoup(html, "html.parser")
+    tablaDias = []
+    for day in getGapDays(soup):
+        tablaDias.append({"dia":"", "tareas":[]})
+    dia = 1
+    for day in lista:
+        tareasArray = []
+
+        # Search for each task and append it to table
+        tareasDelDia = day.find_all("span", {"class":"eventname"})
+        for tarea in tareasDelDia:
+            tareasArray.append(tarea.text)
+
+        # Append day to json
+        tablaDias.append({"dia":dia, "tareas":tareasArray})
+        dia+=1
+
+    for day in range(7 - len(getGapDays(soup))):
+        tablaDias.append({"dia":"", "tareas":[]})
+
     return tablaDias
 
 def saveToFile(tablaDias, path):
@@ -120,6 +156,5 @@ html = getHtmlfromDriver()
 listaDiasCalendario = listaCal(html)
 tablaDias = saveTasks(listaDiasCalendario)
 saveToFile(tablaDias, databasePath)
-saveToFile(tablaDias, "/srv/http/web_page/src/database/calendar.json")
 
 # --------------------------------------------------------------------------- #
